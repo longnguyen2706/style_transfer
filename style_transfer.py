@@ -1,53 +1,52 @@
+import glob
+import json
+import os
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
-from PIL import Image
-import torchvision.transforms as transforms
 import torchvision.models as models
+import torchvision.transforms as transforms
+from PIL import Image
 from matplotlib import pyplot as plt
 
 from module import Normalization, ContentLoss, StyleLoss
 
+############################################## INIT ##############################################################
+cnn = models.vgg19(pretrained=True).features.eval()
+
+CONTENT_LAYER_DEFAULT = ['conv_4']
+# STYLE_LAYER_DEFAULT = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5', 'conv_6', 'conv_7']
+STYLE_LAYER_DEFAULT = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5']
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.set_default_device(device)
 
-imsize = 512 if torch.cuda.is_available() else 128  # use small size if no gpu
-loader = transforms.Compose([
-    transforms.Resize(imsize),  # scale imported image
-    transforms.ToTensor()])  # transform it into a torch tensor
+CNN_NORMALIZATION_MEAN = torch.tensor([0.485, 0.456, 0.406]).to(device)
+CNN_NORMALIZATION_STD = torch.tensor([0.229, 0.224, 0.225]).to(device)
+
 
 def image_loader(image_name):
+    imsize = 512 if torch.cuda.is_available() else 128  # use small size if no gpu
+    loader = transforms.Compose([
+        transforms.Resize(imsize),  # scale imported image
+        transforms.ToTensor()])  # transform it into a torch tensor
     image = Image.open(image_name)
     # fake batch dimension required to fit network's input dimensions
     image = loader(image).unsqueeze(0)
     return image.to(device, torch.float)
 
 
-style_img = image_loader("./data/images/style.jpg")
-content_img = image_loader("./data/images/real.png")
-
-assert style_img.size() == content_img.size(), \
-    "we need to import style and content images of the same size"
-
-unloader = transforms.ToPILImage()  # reconvert into PIL image
-
-plt.ion()
 def imshow(tensor, title=None):
     image = tensor.cpu().clone()  # we clone the tensor to not do changes on it
-    image = image.squeeze(0)      # remove the fake batch dimension
+    image = image.squeeze(0)  # remove the fake batch dimension
+    unloader = transforms.ToPILImage()  # reconvert into PIL image
     image = unloader(image)
     plt.imshow(image)
     if title is not None:
         plt.title(title)
-    plt.pause(0.001) # pause a bit so that plots are updated
+    plt.pause(0.001)  # pause a bit so that plots are updated
 
-
-cnn = models.vgg19(pretrained=True).features.eval()
-
-CONTENT_LAYER_DEFAULT = ['conv_4']
-# STYLE_LAYER_DEFAULT = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5', 'conv_6', 'conv_7']
-STYLE_LAYER_DEFAULT = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5']
 
 def get_style_model_and_losses(cnn, normalization_mean, normalization_std, style_img, content_img,
                                content_layers=CONTENT_LAYER_DEFAULT, style_layers=STYLE_LAYER_DEFAULT):
@@ -81,7 +80,6 @@ def get_style_model_and_losses(cnn, normalization_mean, normalization_std, style
             model.add_module("content_loss_{}".format(i), content_loss)
             content_losses.append(content_loss)
 
-
         if name in style_layers:
             target_feature = model(style_img).detach()
             style_loss = StyleLoss(target_feature)
@@ -96,14 +94,17 @@ def get_style_model_and_losses(cnn, normalization_mean, normalization_std, style
 
     return model, style_losses, content_losses
 
+
 def get_input_optimizer(input_img):
     optimizer = optim.LBFGS([input_img.requires_grad_()])
     return optimizer
 
+
 def run_style_transfer(cnn, normalization_mean, normalization_std, content_img, style_img,
                        input_img, num_steps=300, style_weight=1000000, content_weight=1):
     print('Building the style transfer model..')
-    model, style_losses, content_losses = get_style_model_and_losses(cnn, normalization_mean, normalization_std, style_img, content_img)
+    model, style_losses, content_losses = get_style_model_and_losses(cnn, normalization_mean, normalization_std,
+                                                                     style_img, content_img)
 
     # we want to optimize the input and not the model parameters
     input_img.requires_grad_(True)
@@ -149,27 +150,73 @@ def run_style_transfer(cnn, normalization_mean, normalization_std, content_img, 
             return style_score + content_score
 
         optimizer.step(closure)
+
     with torch.no_grad():
         input_img.data.clamp_(0, 1)
-    return input_img
 
-cnn_normalization_mean = torch.tensor([0.485, 0.456, 0.406]).to(device)
-cnn_normalization_std = torch.tensor([0.229, 0.224, 0.225]).to(device)
+        style_score, content_score = 0, 0
+        for sl in style_losses:
+            style_score += sl.loss
+        for cl in content_losses:
+            content_score += cl.loss
+    return input_img, style_score.item()*style_weight, content_score.item()*content_weight
 
-input_img = content_img.clone()
 
-output = run_style_transfer(cnn, cnn_normalization_mean, cnn_normalization_std,
-                            content_img, style_img, input_img)
+def train(cnn, style_img_path, content_img_path, output_img_path, metric_path, num_steps=300, style_weight=1000000, content_weight=1):
 
-plt.figure()
-imshow(output, title='Output Image')
+    style_img = image_loader(style_img_path)
+    content_img = image_loader(content_img_path)
 
-# sphinx_gallery_thumbnail_number = 4
-plt.ioff()
-plt.show()
+    assert style_img.size() == content_img.size(), \
+        "we need to import style and content images of the same size"
 
-# save
-output = output.cpu().clone()
-output = output.squeeze(0)
-output = unloader(output)
-output.save("./data/images/output.jpg")
+    plt.ion()
+    input_img = content_img.clone()
+    output, style_loss, content_loss  = run_style_transfer(cnn, CNN_NORMALIZATION_MEAN, CNN_NORMALIZATION_STD,
+                                content_img, style_img, input_img, num_steps=300, style_weight=1000000,
+                                content_weight=1)
+    print ("Style Loss: ", style_loss, "Content Loss: ", content_loss)
+    # plt.figure()
+    # imshow(output, title='Output Image')
+    #
+    # # sphinx_gallery_thumbnail_number = 4
+    # plt.ioff()
+    # plt.show()
+
+    # save image
+    unloader = transforms.ToPILImage()  # reconvert into PIL image
+    output = output.cpu().clone()
+    output = output.squeeze(0)
+    output = unloader(output)
+    output.save(output_img_path)
+
+    # save metric
+    with open(metric_path, "w") as f:
+        data = {}
+        data["style_loss"] = style_loss
+        data["content_loss"] = content_loss
+        data["style_weight"] = style_weight
+        data["content_weight"] = content_weight
+        f.write(json.dumps(data))
+
+
+if __name__ == '__main__':
+    cnn = models.vgg19(pretrained=True).features.to(device).eval()
+
+    DATA_FOLDER = "./datasets/monet2photo/"
+    style_folder, content_folder = os.path.join(DATA_FOLDER, 'testA'), os.path.join(DATA_FOLDER, 'testB')
+    # load all file in folder
+    style_imgs = glob.glob(style_folder + "/*.jpg")
+    content_imgs = glob.glob(content_folder + "/*.jpg")
+
+    for style_img_path in style_imgs:
+        for content_img_path in content_imgs:
+            style_image_name = style_img_path.split("/")[-1].split(".")[0]
+            content_image_name = content_img_path.split("/")[-1].split(".")[0]
+
+            output_img_path = "./data/images/" + style_image_name+"_"+content_image_name+".jpg"
+            metric_path = "./data/metrics/" + style_image_name+"_"+content_image_name+".json"
+
+            print("Style Image: ", style_image_name, "Content Image: ", content_image_name)
+
+            train(cnn, style_img_path, content_img_path, output_img_path, metric_path, num_steps=300, style_weight=1000000, content_weight=1)
