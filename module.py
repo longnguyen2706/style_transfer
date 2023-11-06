@@ -21,6 +21,21 @@ class StyleLoss(nn.Module):
         self.loss = F.mse_loss(G, self.target)
         return input
 
+class AvgStyleLoss(nn.Module):
+    def __init__(self, target_features):
+        super(AvgStyleLoss, self).__init__()
+        gram_matrixes = []
+        for target_feature in target_features:
+            g = gram_matrix(target_feature).detach()
+            gram_matrixes.append(g)
+        # average out the gram matrix
+        self.target = sum(gram_matrixes) / len(gram_matrixes)
+
+    def forward(self, input):
+        G = gram_matrix(input)
+        self.loss = F.mse_loss(G, self.target)
+        return input
+
 def gram_matrix(input):
     a,b, c, d = input.size() # a=batch size(=1), b=number of feature maps, (c,d)=dimensions of a f. map (N=c*d)
     features = input.view(a * b, c * d)

@@ -10,7 +10,7 @@ import torchvision.transforms as transforms
 from PIL import Image
 from matplotlib import pyplot as plt
 
-from module import Normalization, ContentLoss, StyleLoss
+from module import Normalization, ContentLoss, StyleLoss, AvgStyleLoss
 
 ############################################## INIT ##############################################################
 cnn = models.vgg19(pretrained=True).features.eval()
@@ -48,7 +48,7 @@ def imshow(tensor, title=None):
     plt.pause(0.001)  # pause a bit so that plots are updated
 
 
-def get_style_model_and_losses(cnn, normalization_mean, normalization_std, style_img, content_img,
+def get_style_model_and_losses(cnn, normalization_mean, normalization_std, style_imgs, content_img,
                                content_layers=CONTENT_LAYER_DEFAULT, style_layers=STYLE_LAYER_DEFAULT):
     normalization = Normalization(normalization_mean, normalization_std).to(device)
 
@@ -80,15 +80,18 @@ def get_style_model_and_losses(cnn, normalization_mean, normalization_std, style
             model.add_module("content_loss_{}".format(i), content_loss)
             content_losses.append(content_loss)
 
+        target_features = []
+        for style_img in style_imgs:
+            target_features.append(model(style_img).detach())
+
         if name in style_layers:
-            target_feature = model(style_img).detach()
-            style_loss = StyleLoss(target_feature)
+            style_loss = AvgStyleLoss(target_features)
             model.add_module("style_loss_{}".format(i), style_loss)
             style_losses.append(style_loss)
 
     # trim off the layers after the last content and style losses
     for i in range(len(model) - 1, -1, -1):
-        if isinstance(model[i], ContentLoss) or isinstance(model[i], StyleLoss):
+        if isinstance(model[i], ContentLoss) or isinstance(model[i], AvgStyleLoss):
             break
     model = model[:(i + 1)]
 
@@ -100,11 +103,11 @@ def get_input_optimizer(input_img):
     return optimizer
 
 
-def run_style_transfer(cnn, normalization_mean, normalization_std, content_img, style_img,
+def run_style_transfer(cnn, normalization_mean, normalization_std, content_img, style_imgs,
                        input_img, num_steps=300, style_weight=1000000, content_weight=1):
     print('Building the style transfer model..')
     model, style_losses, content_losses = get_style_model_and_losses(cnn, normalization_mean, normalization_std,
-                                                                     style_img, content_img)
+                                                                     style_imgs, content_img)
 
     # we want to optimize the input and not the model parameters
     input_img.requires_grad_(True)
@@ -162,19 +165,19 @@ def run_style_transfer(cnn, normalization_mean, normalization_std, content_img, 
     return input_img, style_score.item()*style_weight, content_score.item()*content_weight
 
 
-def train(cnn, style_img_path, content_img_path, output_img_path, metric_path, num_steps=300, style_weight=1000000, content_weight=1):
-
-    style_img = image_loader(style_img_path)
+def train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, num_steps=300, style_weight=1000000, content_weight=1):
+    style_imgs = []
+    for style_img_path in style_img_paths:
+        style_imgs.append(image_loader(style_img_path))
     content_img = image_loader(content_img_path)
-
-    assert style_img.size() == content_img.size(), \
-        "we need to import style and content images of the same size"
+    #
+    # assert style_img.size() == content_img.size(), \
+    #     "we need to import style and content images of the same size"
 
     plt.ion()
     input_img = content_img.clone()
     output, style_loss, content_loss  = run_style_transfer(cnn, CNN_NORMALIZATION_MEAN, CNN_NORMALIZATION_STD,
-                                content_img, style_img, input_img, num_steps=300, style_weight=1000000,
-                                content_weight=1)
+                                content_img, style_imgs, input_img, num_steps, style_weight, content_weight)
     print ("Style Loss: ", style_loss, "Content Loss: ", content_loss)
     # plt.figure()
     # imshow(output, title='Output Image')
@@ -209,15 +212,14 @@ if __name__ == '__main__':
     style_imgs = glob.glob(style_folder + "/*.jpg")
     content_imgs = glob.glob(content_folder + "/*.jpg")
 
-    for style_img_path in style_imgs:
-        for content_img_path in content_imgs:
-            style_image_name = style_img_path.split("/")[-1].split(".")[0]
-            content_image_name = content_img_path.split("/")[-1].split(".")[0]
+    for content_img_path in content_imgs:
 
-            output_img_path = "./data/images/" + style_image_name+"_"+content_image_name+".jpg"
-            metric_path = "./data/metrics/" + style_image_name+"_"+content_image_name+".json"
+        content_image_name = content_img_path.split("/")[-1].split(".")[0]
 
-            print("Style Image: ", style_image_name, "Content Image: ", content_image_name)
+        output_img_path = "./data/images/" + "avg"+"_"+content_image_name+".jpg"
+        metric_path = "./data/metrics/" + "avg" + "_"+ content_image_name+".json"
 
-            train(cnn, style_img_path, content_img_path, output_img_path, metric_path, num_steps=300, style_weight=1000000, content_weight=1)
+        print( "Content Image: ", content_image_name)
+
+        train(cnn, style_imgs, content_img_path, output_img_path, metric_path, num_steps=1000, style_weight=1000000, content_weight=1)
 
