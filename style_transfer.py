@@ -24,8 +24,8 @@ def image_loader(image_name):
     return image.to(device, torch.float)
 
 
-style_img = image_loader("./data/images/picasso.jpg")
-content_img = image_loader("./data/images/dancing.jpg")
+style_img = image_loader("./data/images/style.jpg")
+content_img = image_loader("./data/images/real.png")
 
 assert style_img.size() == content_img.size(), \
     "we need to import style and content images of the same size"
@@ -46,6 +46,7 @@ def imshow(tensor, title=None):
 cnn = models.vgg19(pretrained=True).features.eval()
 
 CONTENT_LAYER_DEFAULT = ['conv_4']
+# STYLE_LAYER_DEFAULT = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5', 'conv_6', 'conv_7']
 STYLE_LAYER_DEFAULT = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5']
 
 def get_style_model_and_losses(cnn, normalization_mean, normalization_std, style_img, content_img,

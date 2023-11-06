@@ -16,7 +16,7 @@ import urllib
 from PIL import Image
 from torchvision import transforms
 
-filename = "data/images/dancing.jpg"
+filename = "data/images/output.jpg"
 input_image = Image.open(filename)
 input_image = input_image.convert("RGB")
 preprocess = transforms.Compose([
@@ -49,3 +49,4 @@ r.putpalette(colors)
 import matplotlib.pyplot as plt
 plt.imshow(r)
 plt.show()
+
