@@ -26,6 +26,17 @@ torch.set_default_device(device)
 CNN_NORMALIZATION_MEAN = torch.tensor([0.485, 0.456, 0.406]).to(device)
 CNN_NORMALIZATION_STD = torch.tensor([0.229, 0.224, 0.225]).to(device)
 
+OUTLIER_FILES = ['2014-08-20 08:13:24_real', '2013-09-09 15:09:50_real', '2014-08-24 18:28:05_real',
+                 '2014-05-24 03:00:10_real', '2014-07-01 23:36:11_real', '2014-08-25 21:07:24_real',
+                 '2014-07-19 04:26:01_real', '2014-08-27 00:26:02_real', '2014-08-28 14:24:51_real',
+                 '2014-08-05 16:20:33_real', '2012-05-15 07:40:41_real', '2014-08-05 17:32:46_real',
+                 '2014-08-31 07:26:58_real', '2014-08-31 09:08:36_real', '2012-06-14 05:38:40_real',
+                 '2014-09-01 10:37:27_real', '2014-09-01 17:13:18_real', '2014-08-11 11:35:13_real',
+                 '2014-09-03 06:37:24_real', '2014-09-03 19:37:15_real', '2014-08-15 08:48:43_real',
+                 '2012-09-02 17:42:41_real', '2013-06-25 19:25:21_real', '2014-09-10 12:09:48_real',
+                 '2014-09-11 01:07:17_real', '2014-08-17 23:34:43_real', '2014-08-18 01:13:49_real'
+                 ]
+
 def get_style_model_and_losses(cnn, normalization_mean, normalization_std, style_paths, content_path,
                                content_layers=CONTENT_LAYER_DEFAULT, style_layers=STYLE_LAYER_DEFAULT):
     normalization = Normalization(normalization_mean, normalization_std).to(device)
@@ -187,11 +198,12 @@ if __name__ == '__main__':
 
         content_image_name = content_img_path.split("/")[-1].split(".")[0]
 
-        output_img_path = "./data/images/" + "avg"+"_"+content_image_name+".jpg"
-        metric_path = "./data/metrics/" + "avg" + "_"+ content_image_name+".json"
+        if content_image_name in OUTLIER_FILES:
+            output_img_path = "./data/images/" + "avg"+"_"+content_image_name+".jpg"
+            metric_path = "./data/metrics/" + "avg" + "_"+ content_image_name+".json"
 
-        print( "Content Image: ", content_image_name)
+            print( "Content Image: ", content_image_name)
 
-        train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, num_steps=1000, style_weight=1000000, content_weight=1)
+            train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, num_steps=500, style_weight=1000000, content_weight=1)
 
 
