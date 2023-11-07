@@ -11,6 +11,7 @@ from PIL import Image
 from matplotlib import pyplot as plt
 
 from module import Normalization, ContentLoss, StyleLoss, AvgStyleLoss
+from utils import get_device, image_loader
 
 ############################################## INIT ##############################################################
 cnn = models.vgg19(pretrained=True).features.eval()
@@ -19,36 +20,13 @@ CONTENT_LAYER_DEFAULT = ['conv_4']
 # STYLE_LAYER_DEFAULT = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5', 'conv_6', 'conv_7']
 STYLE_LAYER_DEFAULT = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5']
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = get_device()
 torch.set_default_device(device)
 
 CNN_NORMALIZATION_MEAN = torch.tensor([0.485, 0.456, 0.406]).to(device)
 CNN_NORMALIZATION_STD = torch.tensor([0.229, 0.224, 0.225]).to(device)
 
-
-def image_loader(image_name):
-    imsize = 512 if torch.cuda.is_available() else 128  # use small size if no gpu
-    loader = transforms.Compose([
-        transforms.Resize(imsize),  # scale imported image
-        transforms.ToTensor()])  # transform it into a torch tensor
-    image = Image.open(image_name)
-    # fake batch dimension required to fit network's input dimensions
-    image = loader(image).unsqueeze(0)
-    return image.to(device, torch.float)
-
-
-def imshow(tensor, title=None):
-    image = tensor.cpu().clone()  # we clone the tensor to not do changes on it
-    image = image.squeeze(0)  # remove the fake batch dimension
-    unloader = transforms.ToPILImage()  # reconvert into PIL image
-    image = unloader(image)
-    plt.imshow(image)
-    if title is not None:
-        plt.title(title)
-    plt.pause(0.001)  # pause a bit so that plots are updated
-
-
-def get_style_model_and_losses(cnn, normalization_mean, normalization_std, style_imgs, content_img,
+def get_style_model_and_losses(cnn, normalization_mean, normalization_std, style_paths, content_path,
                                content_layers=CONTENT_LAYER_DEFAULT, style_layers=STYLE_LAYER_DEFAULT):
     normalization = Normalization(normalization_mean, normalization_std).to(device)
 
@@ -58,6 +36,7 @@ def get_style_model_and_losses(cnn, normalization_mean, normalization_std, style
     model = nn.Sequential(normalization)
 
     i = 0
+    content_img = image_loader(content_path)
     for layer in cnn.children():
         if isinstance(layer, nn.Conv2d):
             i += 1
@@ -80,12 +59,8 @@ def get_style_model_and_losses(cnn, normalization_mean, normalization_std, style
             model.add_module("content_loss_{}".format(i), content_loss)
             content_losses.append(content_loss)
 
-        target_features = []
-        for style_img in style_imgs:
-            target_features.append(model(style_img).detach())
-
         if name in style_layers:
-            style_loss = AvgStyleLoss(target_features)
+            style_loss = AvgStyleLoss(style_paths, model)
             model.add_module("style_loss_{}".format(i), style_loss)
             style_losses.append(style_loss)
 
@@ -103,11 +78,11 @@ def get_input_optimizer(input_img):
     return optimizer
 
 
-def run_style_transfer(cnn, normalization_mean, normalization_std, content_img, style_imgs,
+def run_style_transfer(cnn, normalization_mean, normalization_std, content_path, style_paths,
                        input_img, num_steps=300, style_weight=1000000, content_weight=1):
     print('Building the style transfer model..')
     model, style_losses, content_losses = get_style_model_and_losses(cnn, normalization_mean, normalization_std,
-                                                                     style_imgs, content_img)
+                                                                     style_paths, content_path)
 
     # we want to optimize the input and not the model parameters
     input_img.requires_grad_(True)
@@ -166,18 +141,14 @@ def run_style_transfer(cnn, normalization_mean, normalization_std, content_img, 
 
 
 def train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, num_steps=300, style_weight=1000000, content_weight=1):
-    style_imgs = []
-    for style_img_path in style_img_paths:
-        style_imgs.append(image_loader(style_img_path))
-    content_img = image_loader(content_img_path)
     #
     # assert style_img.size() == content_img.size(), \
     #     "we need to import style and content images of the same size"
 
     plt.ion()
-    input_img = content_img.clone()
+    input_img = image_loader(content_img_path).clone()
     output, style_loss, content_loss  = run_style_transfer(cnn, CNN_NORMALIZATION_MEAN, CNN_NORMALIZATION_STD,
-                                content_img, style_imgs, input_img, num_steps, style_weight, content_weight)
+                                content_img_path, style_img_paths, input_img, num_steps, style_weight, content_weight)
     print ("Style Loss: ", style_loss, "Content Loss: ", content_loss)
     # plt.figure()
     # imshow(output, title='Output Image')
@@ -206,13 +177,13 @@ def train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, 
 if __name__ == '__main__':
     cnn = models.vgg19(pretrained=True).features.to(device).eval()
 
-    DATA_FOLDER = "./datasets/monet2photo/"
-    style_folder, content_folder = os.path.join(DATA_FOLDER, 'testA'), os.path.join(DATA_FOLDER, 'testB')
+    DATA_FOLDER = "./datasets/midterm_report/"
+    style_folder, content_folder = os.path.join(DATA_FOLDER, 'style_images'), os.path.join(DATA_FOLDER, 'content_images')
     # load all file in folder
-    style_imgs = glob.glob(style_folder + "/*.jpg")
-    content_imgs = glob.glob(content_folder + "/*.jpg")
+    style_img_paths = sorted(glob.glob(style_folder + "/*.jpg"))
+    content_img_paths = sorted(glob.glob(content_folder + "/*.png"))
 
-    for content_img_path in content_imgs:
+    for content_img_path in content_img_paths:
 
         content_image_name = content_img_path.split("/")[-1].split(".")[0]
 
@@ -221,5 +192,6 @@ if __name__ == '__main__':
 
         print( "Content Image: ", content_image_name)
 
-        train(cnn, style_imgs, content_img_path, output_img_path, metric_path, num_steps=1000, style_weight=1000000, content_weight=1)
+        train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, num_steps=1000, style_weight=1000000, content_weight=1)
+
 
