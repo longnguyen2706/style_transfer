@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from utils import image_loader
+
+
 class ContentLoss(nn.Module):
     def __init__(self, target,):
         super(ContentLoss, self).__init__()
@@ -22,14 +25,21 @@ class StyleLoss(nn.Module):
         return input
 
 class AvgStyleLoss(nn.Module):
-    def __init__(self, target_features):
+    def __init__(self, target_paths, model):
         super(AvgStyleLoss, self).__init__()
         gram_matrixes = []
-        for target_feature in target_features:
-            g = gram_matrix(target_feature).detach()
+        # for target_feature in target_features:
+        #     g = gram_matrix(target_feature).detach()
+        #     gram_matrixes.append(g)
+        # # average out the gram matrix
+        # self.target = sum(gram_matrixes) / len(gram_matrixes)
+        for target_path in target_paths:
+            image = image_loader(target_path)
+            feature = model(image).detach()
+            g = gram_matrix(feature)
             gram_matrixes.append(g)
-        # average out the gram matrix
         self.target = sum(gram_matrixes) / len(gram_matrixes)
+        print ("style shape: ", self.target.shape)
 
     def forward(self, input):
         G = gram_matrix(input)
