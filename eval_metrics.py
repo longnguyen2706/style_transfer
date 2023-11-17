@@ -49,7 +49,7 @@ class EvaluationMetrics:
 
     def compute_lpips_and_artFID(self, content_tensor, generated_tensor):
         d = self.loss_fn_alex(content_tensor, generated_tensor)
-        art_fid = (1 + d.item()) * (1 + 4.481046369811025)
+        art_fid = (1 + d.item()) * (1 + 16.1727)
         return (d.item(), art_fid)
 
     # Helper functions

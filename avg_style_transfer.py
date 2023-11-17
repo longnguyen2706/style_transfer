@@ -198,12 +198,12 @@ if __name__ == '__main__':
 
         content_image_name = content_img_path.split("/")[-1].split(".")[0]
 
-        if content_image_name in OUTLIER_FILES:
-            output_img_path = "./data/images/" + "avg"+"_"+content_image_name+".jpg"
-            metric_path = "./data/metrics/" + "avg" + "_"+ content_image_name+".json"
+        # if content_image_name in OUTLIER_FILES:
+        output_img_path = "./data/images/" + "avg"+"_"+content_image_name+".jpg"
+        metric_path = "./data/metrics/" + "avg" + "_"+ content_image_name+".json"
 
-            print( "Content Image: ", content_image_name)
+        print( "Content Image: ", content_image_name)
 
-            train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, num_steps=500, style_weight=1000000, content_weight=1)
+        train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, num_steps=1000, style_weight=1000000, content_weight=1)
 
 

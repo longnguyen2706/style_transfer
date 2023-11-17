@@ -8,7 +8,7 @@ from eval_metrics import EvaluationMetrics
 
 DATA_FOLDER = "./datasets/midterm_report/"
 CONTENT_FOLDER = os.path.join(DATA_FOLDER, 'content_images')
-METRICS_FOLDER = "./data/midterm/metrics/"
+METRICS_FOLDER = "./data/metrics/"
 
 # cal metrics on styled image and save to file
 def cal_image_metrics():
@@ -105,15 +105,16 @@ def cal_dataset_metrics():
     feature_similarity_scores = [score for idx, score in enumerate(feature_similarity_scores) if idx not in ignore_idx]
     lpips_scores = [score for idx, score in enumerate(lpips_scores) if idx not in ignore_idx]
     art_fid_scores = [score for idx, score in enumerate(art_fid_scores) if idx not in ignore_idx]
+    print (len(art_fid_scores), art_fid_scores)
 
-    # cal and print mean and std
-    print("Style Loss mean and std: ", cal_mean(style_loss_scores), cal_std(style_loss_scores))
-    print("Content Loss mean and std: ", cal_mean(content_loss_scores), cal_std(content_loss_scores))
-    print("SSIM mean and std: ", cal_mean(ssim_scores), cal_std(ssim_scores))
-    print("PSNR mean and std: ", cal_mean(psnr_scores), cal_std(psnr_scores))
-    print("Feature Similarity mean and std: ", cal_mean(feature_similarity_scores), cal_std(feature_similarity_scores))
-    print("LPIPS mean and std: ", cal_mean(lpips_scores), cal_std(lpips_scores))
-    print("ArtFID mean and std: ", cal_mean(art_fid_scores), cal_std(art_fid_scores))
+    # cal and print mean and std print with 2 decimal places
+    print('Style Loss mean and std: {:.4f} {:.4f}'.format(cal_mean(style_loss_scores), cal_std(style_loss_scores)))
+    print("Content Loss mean and std: {:.4f} {:.4f}".format(cal_mean(content_loss_scores), cal_std(content_loss_scores)))
+    print ("SSIM mean and std: {:.4f} {:.4f}".format(cal_mean(ssim_scores), cal_std(ssim_scores)))
+    print ("PSNR mean and std: {:.4f} {:.4f}".format(cal_mean(psnr_scores), cal_std(psnr_scores)))
+    print ("Feature Similarity mean and std: {:.4f} {:.4f}".format(cal_mean(feature_similarity_scores), cal_std(feature_similarity_scores)))
+    print ("LPIPS mean and std: {:.4f} {:.4f}".format(cal_mean(lpips_scores), cal_std(lpips_scores)))
+    print ("ArtFID mean and std: {:.4f} {:.4f}".format(cal_mean(art_fid_scores), cal_std(art_fid_scores)))
 
 
 if __name__ == "__main__":
