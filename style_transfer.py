@@ -10,7 +10,7 @@ import torchvision.transforms as transforms
 from PIL import Image
 from matplotlib import pyplot as plt
 
-from module import Normalization, ContentLoss, StyleLoss
+from net.module import Normalization, ContentLoss, StyleLoss
 
 ############################################## INIT ##############################################################
 cnn = models.vgg19(pretrained=True).features.eval()

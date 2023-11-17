@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils import image_loader
+from utils.utils import image_loader
 
 
 class ContentLoss(nn.Module):

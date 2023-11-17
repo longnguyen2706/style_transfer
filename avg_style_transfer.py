@@ -7,11 +7,10 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision.models as models
 import torchvision.transforms as transforms
-from PIL import Image
 from matplotlib import pyplot as plt
 
-from module import Normalization, ContentLoss, StyleLoss, AvgStyleLoss
-from utils import get_device, image_loader
+from net.module import Normalization, ContentLoss, AvgStyleLoss
+from utils.utils import get_device, image_loader
 
 ############################################## INIT ##############################################################
 cnn = models.vgg19(pretrained=True).features.eval()
@@ -188,8 +187,8 @@ def train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, 
 if __name__ == '__main__':
     cnn = models.vgg19(pretrained=True).features.to(device).eval()
 
-    DATA_FOLDER = "./datasets/midterm_report/"
-    style_folder, content_folder = os.path.join(DATA_FOLDER, 'style_images'), os.path.join(DATA_FOLDER, 'content_images')
+    DATASET_PATH = "./datasets/midterm_report/"
+    style_folder, content_folder = os.path.join(DATASET_PATH, 'style_images'), os.path.join(DATASET_PATH, 'content_images')
     # load all file in folder
     style_img_paths = sorted(glob.glob(style_folder + "/*.jpg"))
     content_img_paths = sorted(glob.glob(content_folder + "/*.png"))
