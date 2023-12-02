@@ -209,10 +209,10 @@ if __name__ == '__main__':
        
     elif args.dataset == "cityscape":
         # style_folder, content_folder = os.path.join('./datasets/midterm_report/', 'style_images'), os.path.join('./datasets/cityscapes/testA')
-        style_folder, content_folder = os.path.join('./datasets/cityscapes/testB'), os.path.join('./datasets/cityscapes/testA')
+        style_folder, content_folder = os.path.join('./datasets/cityscapes/testA'), os.path.join('./datasets/cityscapes/testB')
         style_img_paths = sorted(glob.glob(style_folder + "/*.jpg"))
         content_img_paths = sorted(glob.glob(content_folder + "/*.jpg"))
-        img_out_dir, metric_out_dir = os.path.join(IMG_OUT_DIR, "cityscape_mask"), os.path.join(METRIC_OUT_DIR, "cityscape_mask")     
+        img_out_dir, metric_out_dir = os.path.join(IMG_OUT_DIR, "cityscape_mask_to_image_10mil"), os.path.join(METRIC_OUT_DIR, "cityscape_mask_to_image_10mil")     
 
     print ("Style Image: ", len(style_img_paths), "Content Image: ", len(content_img_paths))  
 
@@ -229,7 +229,7 @@ if __name__ == '__main__':
 
         print( "Content Image: ", content_image_name)
 
-        train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, num_steps=1000, style_weight=1000000, content_weight=1)
+        train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, num_steps=1000, style_weight=10000000, content_weight=1)
 
 
 
