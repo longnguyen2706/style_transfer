@@ -1,3 +1,4 @@
+import argparse
 import glob
 import json
 import os
@@ -20,7 +21,7 @@ CONTENT_LAYER_DEFAULT = ['conv_4']
 STYLE_LAYER_DEFAULT = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5']
 
 device = get_device()
-torch.set_default_device(device)
+# torch.cuda.set_device(device)
 
 CNN_NORMALIZATION_MEAN = torch.tensor([0.485, 0.456, 0.406]).to(device)
 CNN_NORMALIZATION_STD = torch.tensor([0.229, 0.224, 0.225]).to(device)
@@ -186,23 +187,50 @@ def train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, 
 
 if __name__ == '__main__':
     cnn = models.vgg19(pretrained=True).features.to(device).eval()
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--style_weight", type=float, default=1000000)
+    parser.add_argument("--content_weight", type=float, default=1)
+    parser.add_argument("--dataset", type=str, default="monet")
 
-    DATASET_PATH = "./datasets/midterm_report/"
-    style_folder, content_folder = os.path.join(DATASET_PATH, 'style_images'), os.path.join(DATASET_PATH, 'content_images')
-    # load all file in folder
-    style_img_paths = sorted(glob.glob(style_folder + "/*.jpg"))
-    content_img_paths = sorted(glob.glob(content_folder + "/*.png"))
+    args = parser.parse_args()
+
+    IMG_OUT_DIR = "./data/images"
+    METRIC_OUT_DIR = "./data/metrics"
+    print(args)
+    if args.dataset == "monet":
+        DATASET_PATH = "./datasets/midterm_report/"
+        style_folder, content_folder = os.path.join(DATASET_PATH, 'style_images'), os.path.join(DATASET_PATH, 'content_images')
+        # load all file in folder
+        style_img_paths = sorted(glob.glob(style_folder + "/*.jpg"))
+        content_img_paths = sorted(glob.glob(content_folder + "/*.png"))
+        img_out_dir, metric_out_dir = os.path.join(IMG_OUT_DIR, "monet"), os.path.join(METRIC_OUT_DIR, "monet")       
+
+       
+    elif args.dataset == "cityscape":
+        # style_folder, content_folder = os.path.join('./datasets/midterm_report/', 'style_images'), os.path.join('./datasets/cityscapes/testA')
+        style_folder, content_folder = os.path.join('./datasets/cityscapes/testB'), os.path.join('./datasets/cityscapes/testA')
+        style_img_paths = sorted(glob.glob(style_folder + "/*.jpg"))
+        content_img_paths = sorted(glob.glob(content_folder + "/*.jpg"))
+        img_out_dir, metric_out_dir = os.path.join(IMG_OUT_DIR, "cityscape_mask"), os.path.join(METRIC_OUT_DIR, "cityscape_mask")     
+
+    print ("Style Image: ", len(style_img_paths), "Content Image: ", len(content_img_paths))  
+
+    os.makedirs(img_out_dir, exist_ok=True)
+    os.makedirs(metric_out_dir, exist_ok=True)
 
     for content_img_path in content_img_paths:
 
         content_image_name = content_img_path.split("/")[-1].split(".")[0]
 
         # if content_image_name in OUTLIER_FILES:
-        output_img_path = "./data/images/" + "avg"+"_"+content_image_name+".jpg"
-        metric_path = "./data/metrics/" + "avg" + "_"+ content_image_name+".json"
+        output_img_path = os.path.join(img_out_dir,  "avg"+"_"+content_image_name+".jpg")
+        metric_path =  os.path.join(metric_out_dir, "avg" + "_"+ content_image_name+".json")
 
         print( "Content Image: ", content_image_name)
 
         train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, num_steps=1000, style_weight=1000000, content_weight=1)
+
+
 
 

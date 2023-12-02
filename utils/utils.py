@@ -11,7 +11,7 @@ from PIL import Image
 from matplotlib import pyplot as plt
 
 def get_device():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     return device
 
 def image_loader(image_name):

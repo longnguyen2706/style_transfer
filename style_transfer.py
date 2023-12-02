@@ -11,6 +11,7 @@ from PIL import Image
 from matplotlib import pyplot as plt
 
 from net.module import Normalization, ContentLoss, StyleLoss
+import argparse
 
 ############################################## INIT ##############################################################
 cnn = models.vgg19(pretrained=True).features.eval()
@@ -202,22 +203,46 @@ def train(cnn, style_img_path, content_img_path, output_img_path, metric_path, n
 
 if __name__ == '__main__':
     cnn = models.vgg19(pretrained=True).features.to(device).eval()
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--style_weight", type=float, default=1000000)
+    parser.add_argument("--content_weight", type=float, default=1)
+    parser.add_argument("--dataset", type=str, default="monet")
 
-    DATA_FOLDER = "./datasets/monet2photo/"
-    style_folder, content_folder = os.path.join(DATA_FOLDER, 'testA'), os.path.join(DATA_FOLDER, 'testB')
-    # load all file in folder
-    style_imgs = glob.glob(style_folder + "/*.jpg")
-    content_imgs = glob.glob(content_folder + "/*.jpg")
+    args = parser.parse_args()
 
-    for style_img_path in style_imgs:
-        for content_img_path in content_imgs:
-            style_image_name = style_img_path.split("/")[-1].split(".")[0]
-            content_image_name = content_img_path.split("/")[-1].split(".")[0]
+    IMG_OUT_DIR = "./data/images"
+    METRIC_OUT_DIR = "./data/metrics"
+    print(args)
+    if args.dataset == "monet":
+        DATASET_PATH = "./datasets/midterm_report/"
+        style_folder, content_folder = os.path.join(DATASET_PATH, 'style_images'), os.path.join(DATASET_PATH, 'content_images')
+        # load all file in folder
+        style_img_paths = sorted(glob.glob(style_folder + "/*.jpg"))
+        content_img_paths = sorted(glob.glob(content_folder + "/*.png"))
+        img_out_dir, metric_out_dir = os.path.join(IMG_OUT_DIR, "monet"), os.path.join(METRIC_OUT_DIR, "monet")       
 
-            output_img_path = "./data/images/" + style_image_name+"_"+content_image_name+".jpg"
-            metric_path = "./data/metrics/" + style_image_name+"_"+content_image_name+".json"
+       
+    elif args.dataset == "cityscape":
+        # style_folder, content_folder = os.path.join('./datasets/midterm_report/', 'style_images'), os.path.join('./datasets/cityscapes/testA')
+        style_folder, content_folder = os.path.join('./datasets/cityscapes/testB'), os.path.join('./datasets/cityscapes/testA')
+        style_img_paths = sorted(glob.glob(style_folder + "/*.jpg"))
+        content_img_paths = sorted(glob.glob(content_folder + "/*.jpg"))
+        img_out_dir, metric_out_dir = os.path.join(IMG_OUT_DIR, "cityscape_mask_single"), os.path.join(METRIC_OUT_DIR, "cityscape_mask_single")     
 
-            print("Style Image: ", style_image_name, "Content Image: ", content_image_name)
+    print ("Style Image: ", len(style_img_paths), "Content Image: ", len(content_img_paths))  
 
-            train(cnn, style_img_path, content_img_path, output_img_path, metric_path, num_steps=300, style_weight=1000000, content_weight=1)
+    os.makedirs(img_out_dir, exist_ok=True)
+    os.makedirs(metric_out_dir, exist_ok=True)
 
+    for idx, content_img_path in enumerate(content_img_paths):
+
+        content_image_name = content_img_path.split("/")[-1].split(".")[0]
+        style_img_path = style_img_paths[idx]
+        # if content_image_name in OUTLIER_FILES:
+        output_img_path = os.path.join(img_out_dir,  "avg"+"_"+content_image_name+".jpg")
+        metric_path =  os.path.join(metric_out_dir, "avg" + "_"+ content_image_name+".json")
+
+        print( "Content Image: ", content_image_name)
+
+        train(cnn, style_img_path, content_img_path, output_img_path, metric_path, num_steps=1000, style_weight=10000, content_weight=1)
