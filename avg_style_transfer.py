@@ -212,15 +212,15 @@ if __name__ == '__main__':
         style_folder, content_folder = os.path.join('./datasets/cityscapes/testA'), os.path.join('./datasets/cityscapes/testB')
         style_img_paths = sorted(glob.glob(style_folder + "/*.jpg"))
         content_img_paths = sorted(glob.glob(content_folder + "/*.jpg"))
-        img_out_dir, metric_out_dir = os.path.join(IMG_OUT_DIR, "cityscape_mask_to_image_10mil"), os.path.join(METRIC_OUT_DIR, "cityscape_mask_to_image_10mil")     
+        img_out_dir, metric_out_dir = os.path.join(IMG_OUT_DIR, "cityscape_mask_to_image"), os.path.join(METRIC_OUT_DIR, "cityscape_mask_to_image")     
 
     print ("Style Image: ", len(style_img_paths), "Content Image: ", len(content_img_paths))  
 
     os.makedirs(img_out_dir, exist_ok=True)
     os.makedirs(metric_out_dir, exist_ok=True)
 
-    for content_img_path in content_img_paths:
-
+    for idx, content_img_path in enumerate(content_img_paths):
+        
         content_image_name = content_img_path.split("/")[-1].split(".")[0]
 
         # if content_image_name in OUTLIER_FILES:
@@ -229,7 +229,11 @@ if __name__ == '__main__':
 
         print( "Content Image: ", content_image_name)
 
-        train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, num_steps=1000, style_weight=10000000, content_weight=1)
+        train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, num_steps=1000, style_weight=5000000, content_weight=1)
+
+
+
+
 
 
 
