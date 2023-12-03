@@ -12,13 +12,18 @@ from matplotlib import pyplot as plt
 
 from net.module import Normalization, ContentLoss, AvgStyleLoss
 from utils.utils import get_device, image_loader
+import config.avg_modified_config as mod_config
+import config.avg_original_config as ori_config
 
 ############################################## INIT ##############################################################
 cnn = models.vgg19(pretrained=True).features.eval()
 
 CONTENT_LAYER_DEFAULT = ['conv_4']
-# STYLE_LAYER_DEFAULT = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5', 'conv_6', 'conv_7']
 STYLE_LAYER_DEFAULT = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5']
+
+IMG_OUT_DIR = "./data/images"
+METRIC_OUT_DIR = "./data/metrics"
+
 
 device = get_device()
 # torch.cuda.set_device(device)
@@ -26,16 +31,16 @@ device = get_device()
 CNN_NORMALIZATION_MEAN = torch.tensor([0.485, 0.456, 0.406]).to(device)
 CNN_NORMALIZATION_STD = torch.tensor([0.229, 0.224, 0.225]).to(device)
 
-OUTLIER_FILES = ['2014-08-20 08:13:24_real', '2013-09-09 15:09:50_real', '2014-08-24 18:28:05_real',
-                 '2014-05-24 03:00:10_real', '2014-07-01 23:36:11_real', '2014-08-25 21:07:24_real',
-                 '2014-07-19 04:26:01_real', '2014-08-27 00:26:02_real', '2014-08-28 14:24:51_real',
-                 '2014-08-05 16:20:33_real', '2012-05-15 07:40:41_real', '2014-08-05 17:32:46_real',
-                 '2014-08-31 07:26:58_real', '2014-08-31 09:08:36_real', '2012-06-14 05:38:40_real',
-                 '2014-09-01 10:37:27_real', '2014-09-01 17:13:18_real', '2014-08-11 11:35:13_real',
-                 '2014-09-03 06:37:24_real', '2014-09-03 19:37:15_real', '2014-08-15 08:48:43_real',
-                 '2012-09-02 17:42:41_real', '2013-06-25 19:25:21_real', '2014-09-10 12:09:48_real',
-                 '2014-09-11 01:07:17_real', '2014-08-17 23:34:43_real', '2014-08-18 01:13:49_real'
-                 ]
+# OUTLIER_FILES = ['2014-08-20 08:13:24_real', '2013-09-09 15:09:50_real', '2014-08-24 18:28:05_real',
+#                  '2014-05-24 03:00:10_real', '2014-07-01 23:36:11_real', '2014-08-25 21:07:24_real',
+#                  '2014-07-19 04:26:01_real', '2014-08-27 00:26:02_real', '2014-08-28 14:24:51_real',
+#                  '2014-08-05 16:20:33_real', '2012-05-15 07:40:41_real', '2014-08-05 17:32:46_real',
+#                  '2014-08-31 07:26:58_real', '2014-08-31 09:08:36_real', '2012-06-14 05:38:40_real',
+#                  '2014-09-01 10:37:27_real', '2014-09-01 17:13:18_real', '2014-08-11 11:35:13_real',
+#                  '2014-09-03 06:37:24_real', '2014-09-03 19:37:15_real', '2014-08-15 08:48:43_real',
+#                  '2012-09-02 17:42:41_real', '2013-06-25 19:25:21_real', '2014-09-10 12:09:48_real',
+#                  '2014-09-11 01:07:17_real', '2014-08-17 23:34:43_real', '2014-08-18 01:13:49_real'
+#                  ]
 
 def get_style_model_and_losses(cnn, normalization_mean, normalization_std, style_paths, content_path,
                                content_layers=CONTENT_LAYER_DEFAULT, style_layers=STYLE_LAYER_DEFAULT):
@@ -84,16 +89,26 @@ def get_style_model_and_losses(cnn, normalization_mean, normalization_std, style
     return model, style_losses, content_losses
 
 
-def get_input_optimizer(input_img):
-    optimizer = optim.LBFGS([input_img.requires_grad_()])
+def get_input_optimizer(input_img, optimizer_choice):
+    print('Optimizer: ', optimizer_choice)
+    if optimizer_choice == 'lbfgs':
+        optimizer = optim.LBFGS([input_img.requires_grad_()])
+    elif optimizer_choice == 'adam':
+        optimizer = optim.Adam([input_img.requires_grad_()], lr=0.01)  # You can adjust the learning rate
+    else:
+        raise ValueError("Unsupported optimizer choice", optimizer_choice)
     return optimizer
 
 
 def run_style_transfer(cnn, normalization_mean, normalization_std, content_path, style_paths,
-                       input_img, num_steps=300, style_weight=1000000, content_weight=1):
+                       input_img, num_steps=300, style_weight=1000000, content_weight=1, 
+                       content_layers=['conv_4'], style_layers=['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5'],
+                       tv_weight=0.0, optimizer_choice='lbfgs', loss_choice='generic'):
     print('Building the style transfer model..')
+    # print ("Content Layers: ", content_layers, "Style Layers: ", style_layers, "TV Weight: ", tv_weight, "Loss Choice: ", loss_choice)
     model, style_losses, content_losses = get_style_model_and_losses(cnn, normalization_mean, normalization_std,
-                                                                     style_paths, content_path)
+                                                                     style_paths, content_path,
+                                                                     content_layers=content_layers, style_layers=style_layers)
 
     # we want to optimize the input and not the model parameters
     input_img.requires_grad_(True)
@@ -102,7 +117,7 @@ def run_style_transfer(cnn, normalization_mean, normalization_std, content_path,
     model.eval()
     model.requires_grad_(False)
 
-    optimizer = get_input_optimizer(input_img)
+    optimizer = get_input_optimizer(input_img, optimizer_choice=optimizer_choice)
 
     print('Optimizing..')
     run = [0]
@@ -126,7 +141,24 @@ def run_style_transfer(cnn, normalization_mean, normalization_std, content_path,
             style_score *= style_weight
             content_score *= content_weight
 
-            loss = style_score + content_score
+            # loss = style_score + content_score
+            # Add total variation regularization
+            tv_loss = torch.sum(torch.abs(input_img[:, :, :, :-1] - input_img[:, :, :, 1:])) + \
+                        torch.sum(torch.abs(input_img[:, :, :-1, :] - input_img[:, :, 1:, :]))
+            tv_loss *= tv_weight
+
+            if loss_choice == 'generic':
+                if tv_weight != 0.0:
+                    loss = style_score + content_score + tv_loss  # Include TV regularization in the loss
+                else:
+                    loss = style_score + content_score
+            elif loss_choice == 'perceptual':
+                # # Calculate the perceptual loss (VGG-style loss)
+                # perceptual_loss = F.mse_loss(model(input_img), model(style_img))
+                # perceptual_loss *= style_weight  # Adjust the weight as needed
+
+                # loss = perceptual_loss + content_score  # Combine perceptual and content losses
+                raise NotImplementedError() # TODO: need to make it work with avg style loss
             loss.backward()
 
             run[0] += 1
@@ -151,7 +183,9 @@ def run_style_transfer(cnn, normalization_mean, normalization_std, content_path,
     return input_img, style_score.item()*style_weight, content_score.item()*content_weight
 
 
-def train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, num_steps=300, style_weight=1000000, content_weight=1):
+def train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, num_steps=300, style_weight=1000000, content_weight=1, 
+          content_layers=['conv_4'], style_layers=['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5'],
+          tv_weight=0.0, optimizer_choice='lbfgs', loss_choice='generic'):
     #
     # assert style_img.size() == content_img.size(), \
     #     "we need to import style and content images of the same size"
@@ -159,7 +193,8 @@ def train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, 
     plt.ion()
     input_img = image_loader(content_img_path).clone()
     output, style_loss, content_loss  = run_style_transfer(cnn, CNN_NORMALIZATION_MEAN, CNN_NORMALIZATION_STD,
-                                content_img_path, style_img_paths, input_img, num_steps, style_weight, content_weight)
+                                content_img_path, style_img_paths, input_img, num_steps, style_weight, content_weight, 
+                                content_layers, style_layers, tv_weight, optimizer_choice, loss_choice)
     print ("Style Loss: ", style_loss, "Content Loss: ", content_loss)
     # plt.figure()
     # imshow(output, title='Output Image')
@@ -184,6 +219,39 @@ def train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, 
         data["content_weight"] = content_weight
         f.write(json.dumps(data))
 
+def load_data(dataset, mode): 
+
+    if dataset == "monet":
+        DATASET_PATH = "./datasets/midterm_report/"
+        style_folder, content_folder = os.path.join(DATASET_PATH, 'style_images'), os.path.join(DATASET_PATH, 'content_images')
+        # load all file in folder
+        style_img_paths = sorted(glob.glob(style_folder + "/*.jpg"))
+        content_img_paths = sorted(glob.glob(content_folder + "/*.png"))
+        img_out_dir, metric_out_dir = os.path.join(IMG_OUT_DIR, "monet"+ "_"+ mode),  os.path.join(METRIC_OUT_DIR, "monet"+ "_"+ mode )       
+
+       
+    elif dataset == "cityscape":
+        # style_folder, content_folder = os.path.join('./datasets/midterm_report/', 'style_images'), os.path.join('./datasets/cityscapes/testA')
+        style_folder, content_folder = os.path.join('./datasets/cityscapes/testA'), os.path.join('./datasets/cityscapes/testB')
+        style_img_paths = sorted(glob.glob(style_folder + "/*.jpg"))
+        content_img_paths = sorted(glob.glob(content_folder + "/*.jpg"))
+        img_out_dir, metric_out_dir = os.path.join(IMG_OUT_DIR, "cityscape_mask_to_image"+ "_"+ mode), os.path.join(METRIC_OUT_DIR, "cityscape_mask_to_image"+ "_"+ mode)    
+    else: 
+        raise ValueError("Unsupported dataset choice")
+    
+    os.makedirs(img_out_dir, exist_ok=True)
+    os.makedirs(metric_out_dir, exist_ok=True)
+
+    return style_img_paths, content_img_paths, img_out_dir, metric_out_dir 
+
+def get_cfg(mode): 
+    if mode == "modified":
+        cfg = mod_config
+    elif mode == "original":
+        cfg = ori_config
+    else:
+        raise ValueError("Unsupported mode choice")
+    return cfg
 
 if __name__ == '__main__':
     cnn = models.vgg19(pretrained=True).features.to(device).eval()
@@ -191,33 +259,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--style_weight", type=float, default=1000000)
     parser.add_argument("--content_weight", type=float, default=1)
-    parser.add_argument("--dataset", type=str, default="monet")
+    parser.add_argument("--dataset", type=str, default="monet") #dataset = monet or cityscape
+    parser.add_argument("--mode", type=str, default="modified") #optimizer = lbfgs or adam
 
     args = parser.parse_args()
-
-    IMG_OUT_DIR = "./data/images"
-    METRIC_OUT_DIR = "./data/metrics"
     print(args)
-    if args.dataset == "monet":
-        DATASET_PATH = "./datasets/midterm_report/"
-        style_folder, content_folder = os.path.join(DATASET_PATH, 'style_images'), os.path.join(DATASET_PATH, 'content_images')
-        # load all file in folder
-        style_img_paths = sorted(glob.glob(style_folder + "/*.jpg"))
-        content_img_paths = sorted(glob.glob(content_folder + "/*.png"))
-        img_out_dir, metric_out_dir = os.path.join(IMG_OUT_DIR, "monet"), os.path.join(METRIC_OUT_DIR, "monet")       
-
-       
-    elif args.dataset == "cityscape":
-        # style_folder, content_folder = os.path.join('./datasets/midterm_report/', 'style_images'), os.path.join('./datasets/cityscapes/testA')
-        style_folder, content_folder = os.path.join('./datasets/cityscapes/testA'), os.path.join('./datasets/cityscapes/testB')
-        style_img_paths = sorted(glob.glob(style_folder + "/*.jpg"))
-        content_img_paths = sorted(glob.glob(content_folder + "/*.jpg"))
-        img_out_dir, metric_out_dir = os.path.join(IMG_OUT_DIR, "cityscape_mask_to_image"), os.path.join(METRIC_OUT_DIR, "cityscape_mask_to_image")     
-
+    
+    style_img_paths, content_img_paths, img_out_dir, metric_out_dir = load_data(args.dataset, mode=args.mode)
     print ("Style Image: ", len(style_img_paths), "Content Image: ", len(content_img_paths))  
-
-    os.makedirs(img_out_dir, exist_ok=True)
-    os.makedirs(metric_out_dir, exist_ok=True)
+    
+    cfg = get_cfg(args.mode)
 
     for idx, content_img_path in enumerate(content_img_paths):
         
@@ -229,7 +280,9 @@ if __name__ == '__main__':
 
         print( "Content Image: ", content_image_name)
 
-        train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, num_steps=1000, style_weight=5000000, content_weight=1)
+        train(cnn, style_img_paths, content_img_path, output_img_path, metric_path, num_steps=cfg.num_steps, style_weight=cfg.style_weight, content_weight=cfg.content_weight, 
+              content_layers=cfg.content_layers, style_layers=cfg.style_layers,
+            tv_weight=cfg.tv_weight, optimizer_choice=cfg.optimizer_choice, loss_choice=cfg.loss_choice)
 
 
 
