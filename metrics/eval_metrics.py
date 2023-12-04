@@ -47,9 +47,9 @@ class EvaluationMetrics:
                          generated_features.flatten(start_dim=1))
         return similarity.item()
 
-    def compute_lpips_and_artFID(self, content_tensor, generated_tensor):
+    def compute_lpips_and_artFID(self, content_tensor, generated_tensor, fid):
         d = self.loss_fn_alex(content_tensor, generated_tensor)
-        art_fid = (1 + d.item()) * (1 + 16.1727)
+        art_fid = (1 + d.item()) * (1 + fid)
         return (d.item(), art_fid)
 
     # Helper functions
