@@ -6,21 +6,30 @@ import numpy as np
 
 from eval_metrics import EvaluationMetrics
 
-DATA_FOLDER = "./datasets/midterm_report/"
-CONTENT_FOLDER = os.path.join(DATA_FOLDER, 'content_images')
-METRICS_FOLDER = "./data/metrics/"
+IMG_OUT_DIR = "../data/images"
+METRIC_OUT_DIR = "../data/metrics"
+
+### ORIGINAL - CITYSCAPE # 
+# CONTENT_FOLDER = "../datasets/cityscapes/testB"
+# IMG_OUT_FOLDER = os.path.join(IMG_OUT_DIR, 'cityscape_mask_to_image_'+ 'original')
+# METRICS_FOLDER = os.path.join(METRIC_OUT_DIR, 'cityscape_mask_to_image_'+ 'original')
+CONTENT_IMG_EXT = '.jpg' # png
+
+# cal by pytorch_fid on style image and generated image set
+FID = 4.383372446536037
 
 # cal metrics on styled image and save to file
 def cal_image_metrics():
     eval_metrics = EvaluationMetrics(device='cuda')
+    print("Content Folder: ", CONTENT_FOLDER)
     content_folder = CONTENT_FOLDER
     # load all file in folder
-    content_img_paths = sorted(glob.glob(content_folder + "/*.png"))
-
+    content_img_paths = sorted(glob.glob(content_folder + "/*" + CONTENT_IMG_EXT)) # TODO: update here
+    print (content_img_paths)
     for content_img_path in content_img_paths:
         content_image_name = content_img_path.split("/")[-1].split(".")[0]
 
-        generated_img_path = "./data/images/" + "avg" + "_" + content_image_name + ".jpg"
+        generated_img_path = IMG_OUT_FOLDER + "/" + "avg" + "_" + content_image_name + ".jpg"
 
         print("Content Image: ", content_image_name)
 
@@ -41,11 +50,11 @@ def cal_image_metrics():
         print(f'Feature-based similarity (cosine): {feature_similarity}')
 
         # Compute LPIPS and ArtFID
-        lpips_score, art_fid_score = eval_metrics.compute_lpips_and_artFID(content_tensor, generated_tensor)
+        lpips_score, art_fid_score = eval_metrics.compute_lpips_and_artFID(content_tensor, generated_tensor, FID)
         print(f'LPIPS: {lpips_score}')
         print(f'ArtFID:{art_fid_score}')
 
-        metrics_path = "./data/metrics/" + "avg2" + "_" + content_image_name + ".json"
+        metrics_path = METRICS_FOLDER + "/" + "avg2" + "_" + content_image_name + ".json"
         with open(metrics_path, 'w') as f:
             data = {}
             data["ssim"] = ssim_score
@@ -70,12 +79,12 @@ def cal_dataset_metrics():
     style_loss_scores, content_loss_scores, ssim_scores, psnr_scores, \
         feature_similarity_scores, lpips_scores, art_fid_scores = [], [], [], [], [], [], []
 
-    content_img_paths = sorted(glob.glob(CONTENT_FOLDER + "/*.png"))
+    content_img_paths = sorted(glob.glob(CONTENT_FOLDER + "/*" + CONTENT_IMG_EXT)) #png
 
     for content_img_path in content_img_paths:
         content_image_name = content_img_path.split("/")[-1].split(".")[0]
-        metrics1_path = METRICS_FOLDER + "avg" + "_" + content_image_name + ".json"
-        metrics2_path = METRICS_FOLDER + "avg2" + "_" + content_image_name + ".json"
+        metrics1_path = METRICS_FOLDER + "/"+ "avg" + "_" + content_image_name + ".json"
+        metrics2_path = METRICS_FOLDER + "/"+"avg2" + "_" + content_image_name + ".json"
         with open(metrics1_path, 'r') as f:
             metrics1 = json.load(f)
         with open(metrics2_path, 'r') as f:
