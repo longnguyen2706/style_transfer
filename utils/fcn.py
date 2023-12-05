@@ -16,7 +16,8 @@ import urllib
 from PIL import Image
 from torchvision import transforms
 
-filename = "data/images/output.jpg"
+# filename = "/home/hrl_gpu_1/Documents/Projects/style_transfer/data/images/cityscape_mask_to_image_modified/avg_1_B.jpg"
+filename = "/home/hrl_gpu_1/Documents/Projects/style_transfer/datasets/cityscapes/testA/1_A.jpg"
 input_image = Image.open(filename)
 input_image = input_image.convert("RGB")
 preprocess = transforms.Compose([

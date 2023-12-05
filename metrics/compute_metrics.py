@@ -13,10 +13,27 @@ METRIC_OUT_DIR = "../data/metrics"
 # CONTENT_FOLDER = "../datasets/cityscapes/testB"
 # IMG_OUT_FOLDER = os.path.join(IMG_OUT_DIR, 'cityscape_mask_to_image_'+ 'original')
 # METRICS_FOLDER = os.path.join(METRIC_OUT_DIR, 'cityscape_mask_to_image_'+ 'original')
-CONTENT_IMG_EXT = '.jpg' # png
-
+# CONTENT_IMG_EXT = '.jpg' # png
 # cal by pytorch_fid on style image and generated image set
-FID = 4.383372446536037
+# FID = 4.383372446536037
+
+
+## MODIFIED - CITYSCAPE #
+CONTENT_FOLDER = "../datasets/cityscapes/testB"
+IMG_OUT_FOLDER = os.path.join(IMG_OUT_DIR, 'cityscape_mask_to_image_'+ 'modified')
+METRICS_FOLDER = os.path.join(METRIC_OUT_DIR, 'cityscape_mask_to_image_'+ 'modified')
+CONTENT_IMG_EXT = '.jpg' # png
+# cal by pytorch_fid on style image and generated image set
+FID = 4.665211662492719
+
+
+# ## MODIFIED - MONET #
+# CONTENT_FOLDER = "../datasets/midterm_report/content_images"
+# IMG_OUT_FOLDER = os.path.join(IMG_OUT_DIR, 'monet_modified')
+# METRICS_FOLDER = os.path.join(METRIC_OUT_DIR, 'monet_modified')
+# CONTENT_IMG_EXT = '.png' # png
+# # cal by pytorch_fid on style image and generated image set
+# FID = 17.703463127791316
 
 # cal metrics on styled image and save to file
 def cal_image_metrics():
